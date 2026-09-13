@@ -1,0 +1,28 @@
+# Blueprint for the Beacon API. Connect this repo in Render and it will
+# create a Node web service rooted at backend/.
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: beacon-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run prisma:migrate && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: WEB_ORIGIN
+        sync: false
+      - key: REDIS_URL
+        sync: false
