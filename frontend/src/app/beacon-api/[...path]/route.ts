@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 const hopByHop = new Set([
   "connection",
+  "content-encoding",
   "content-length",
   "host",
   "keep-alive",
@@ -24,9 +25,11 @@ const proxy = async (request: NextRequest, path: string[]) => {
   const headers = new Headers()
   request.headers.forEach((value, key) => {
     const lower = key.toLowerCase()
-    if (hopByHop.has(lower) || lower === "origin") return
+    if (hopByHop.has(lower) || lower === "origin" || lower === "accept-encoding")
+      return
     headers.set(key, value)
   })
+  headers.set("accept-encoding", "identity")
 
   const method = request.method
   const hasBody = method !== "GET" && method !== "HEAD"
