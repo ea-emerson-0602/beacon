@@ -1,0 +1,13 @@
+{
+  "name": "beacon",
+  "private": true,
+  "description": "Beacon monorepo. Render start/build from the Git root delegates to backend/.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm ci --include=dev --prefix backend && npm run build --prefix backend",
+    "start": "npm run prisma:migrate --prefix backend && npm start --prefix backend",
+    "prisma:migrate": "npm run prisma:migrate --prefix backend"
+  }
+}

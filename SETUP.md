@@ -309,6 +309,17 @@ Push `main` to GitHub first. Then either:
 - Open <https://dashboard.render.com/blueprint/new?repo=https://github.com/ea-emerson-0602/beacon>, or
 - New → Blueprint → this repo
 
+If you already created a **Web Service** (not a Blueprint), open **Settings**
+and set these — otherwise Render looks for `package.json` at the repo root
+and fails with `ENOENT`:
+
+| Setting | Value |
+| --- | --- |
+| Root Directory | `backend` |
+| Build Command | `npm ci --include=dev && npm run build` |
+| Pre-Deploy Command | `npm run prisma:migrate` |
+| Start Command | `npm start` |
+
 Fill the Blueprint secrets:
 
 | Key | Value |
@@ -371,10 +382,12 @@ npm run seed
 
 | Symptom | Likely cause |
 | --- | --- |
+| `ENOENT` … `/opt/render/project/src/package.json` | Root Directory is not `backend`. Set it in Render Settings (see 9.2). |
 | Build: `prisma: not found` | `prisma` must be in `dependencies`. Re-deploy this repo as-is. |
 | Pre-deploy: advisory lock / P1002 | `DIRECT_URL` is the pooler. Use the Overview Service URI. |
 | Start: `P1001` / can't reach database | Aiven IP allow list, or `sslmode=require` missing from the URI |
 | Health check timeout | First boot waiting on Aiven; confirm the URI and IP list, then redeploy |
 | `Cannot reach the API` on Vercel | Wrong `NEXT_PUBLIC_API_URL`, or the Render service is spun down (wait and retry) |
 | CORS / login cookie dropped | `WEB_ORIGIN` trailing slash or `http` vs `https` mismatch |
+| Demo / login returns to `/login` | Cross-site cookie blocked. Redeploy the frontend so `/beacon-api` proxies the session. Also set Render `WEB_ORIGIN` to the exact Vercel origin. |
 

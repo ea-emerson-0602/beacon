@@ -1,6 +1,11 @@
-export const API_URL = (
+const REMOTE_API_URL = (
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
 ).replace(/\/$/, "")
+
+// Browser calls go through this Next.js host so the session cookie is
+// first-party. Server components still talk to Render/localhost directly.
+export const API_URL =
+  typeof window === "undefined" ? REMOTE_API_URL : "/beacon-api"
 
 export class ApiError extends Error {
   status: number
