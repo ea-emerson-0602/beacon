@@ -27,7 +27,7 @@ export class WebhooksService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit() {
-    const redisUrl = process.env.REDIS_URL;
+    const redisUrl = process.env.REDIS_URL?.trim();
     if (!redisUrl) {
       this.log.warn(
         "REDIS_URL is not set — webhook delivery will use the Postgres outbox only",

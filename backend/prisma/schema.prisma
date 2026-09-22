@@ -6,8 +6,9 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   // Prisma Migrate holds a session-scoped advisory lock, which a transaction-mode
-  // pooler (Neon/Supabase PgBouncer) cannot keep. Must be a non-pooled connection.
-  // Prisma does not fall back to `url`, so DIRECT_URL always has to be set.
+  // pooler (Aiven/Neon/Supabase PgBouncer) cannot keep. Must be a non-pooled
+  // connection. Prisma does not fall back to `url`, so DIRECT_URL always has to
+  // be set. On Aiven without a connection pool, both URLs are the Service URI.
   directUrl = env("DIRECT_URL")
 }
 

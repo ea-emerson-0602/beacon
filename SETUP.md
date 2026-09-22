@@ -265,31 +265,116 @@ Or change `PORT` in `backend/.env` and `NEXT_PUBLIC_API_URL` in
 
 ---
 
-## 9. Deploying
+## 9. Deploying to production
 
-The two applications deploy independently.
+Beacon is three pieces. Deploy them in this order so CORS and cookies line up.
 
-**Frontend → Vercel**
+1. **Aiven** — Postgres
+2. **Render** — API (`backend/`)
+3. **Vercel** — web app (`frontend/`)
+4. Point the API `WEB_ORIGIN` at the Vercel URL and redeploy the API
 
-- Set the project root to `frontend`.
-- Add `NEXT_PUBLIC_API_URL` pointing at your deployed API.
-
-**Backend → Render, Railway, or Fly.io**
-
-- Set the project root to `backend`.
-- Build command: `npm install && npm run build`
-- Start command: `npm run prisma:migrate && npm start`
-- Environment variables: `DATABASE_URL`, `JWT_SECRET`, `WEB_ORIGIN` (your
-  Vercel URL), `COOKIE_SECURE=true`, and optionally `REDIS_URL`.
+There is a Render Blueprint at [`render.yaml`](./render.yaml).
 
 When `COOKIE_SECURE=true`, the session cookie is `SameSite=None; Secure` so
-**Run demo** and sign-in work across a Vercel frontend and a Render API
-without a shared domain. Local HTTP still uses `SameSite=Lax`.
+sign-in works across a Vercel frontend and a Render API without a shared
+domain. A parent domain (`app.example.com` + `api.example.com`) is nicer
+later, but it is not required. See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
-A parent domain (`app.example.com` + `api.example.com`) is nicer later, but
-it is not required for the public demo. See
-[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+### 9.1 Aiven Postgres
 
-There is a Render Blueprint at [`render.yaml`](./render.yaml). After Neon and
-GitHub are ready, you can create the API from that file in the Render
-dashboard.
+1. Create a PostgreSQL service at <https://console.aiven.io>.
+2. Open the service **Overview** and copy **Service URI**. It already includes
+   `sslmode=require`. Use it as-is — do not rebuild it by hand (passwords often
+   contain characters that must stay URL-encoded).
+3. Under **Allowed IP addresses**, allow connections from Render. Render free
+   instances do not have a static IP, so add `0.0.0.0/0` (or Aiven's "public
+   internet" option) or the API will fail with `P1001` / timeout.
+4. Connection pooling is optional and only available on Startup plans and
+   above. Skip it unless you created a pool.
+
+You need **both** Prisma URLs:
+
+| Variable | What to paste |
+| --- | --- |
+| `DIRECT_URL` | Overview **Service URI** (always) |
+| `DATABASE_URL` | The same Service URI, **or** the pool URI with `&pgbouncer=true` if you created a connection pool |
+
+Do not put `pgbouncer=true` on `DIRECT_URL`. Migrations need a direct session.
+
+### 9.2 Render (API)
+
+Push `main` to GitHub first. Then either:
+
+- Open <https://dashboard.render.com/blueprint/new?repo=https://github.com/ea-emerson-0602/beacon>, or
+- New → Blueprint → this repo
+
+Fill the Blueprint secrets:
+
+| Key | Value |
+| --- | --- |
+| `DATABASE_URL` | Aiven URI from 9.1 |
+| `DIRECT_URL` | Aiven Service URI (not the pooler) |
+| `WEB_ORIGIN` | Your Vercel origin, **no trailing slash**. If Vercel is not live yet, use `https://placeholder.vercel.app` and update it in step 9.4 |
+| `JWT_SECRET` | Leave generated |
+| `REDIS_URL` | Leave empty unless you have Redis |
+
+Do **not** set `PORT`. Render injects it.
+
+`NODE_ENV=production`, `COOKIE_SECURE=true`, and Node 20 are already in
+`render.yaml`. Build installs devDependencies (TypeScript) then compiles;
+`preDeployCommand` runs `prisma migrate deploy` against `DIRECT_URL`.
+
+When the deploy is **Live**, open `https://<your-service>.onrender.com/health`.
+You should see `{"ok":true,"service":"beacon-api"}`. Free instances spin down
+after ~15 minutes idle; the first request after that is a cold start.
+
+### 9.3 Vercel (frontend)
+
+1. Import the same GitHub repo at <https://vercel.com/new>.
+2. Set **Root Directory** to `frontend`.
+3. Framework: Next.js (auto-detected).
+4. Add a Production env var, then deploy:
+
+```
+NEXT_PUBLIC_API_URL=https://<your-service>.onrender.com
+```
+
+No trailing slash. This value is inlined at **build** time — changing it later
+requires a rebuild, not just a restart.
+
+### 9.4 Wire the session cookie
+
+1. Copy the Vercel origin (`https://something.vercel.app`).
+2. On the Render service → Environment, set `WEB_ORIGIN` to that exact origin
+   (https, no path, no trailing slash).
+3. Manual Deploy → **Deploy latest commit** (or save env vars with a restart).
+4. Register an account on the Vercel URL and open `/dashboard`.
+
+If login succeeds then bounces back to `/login`, the cookie was dropped:
+`COOKIE_SECURE` must be `true`, and `WEB_ORIGIN` must match the browser origin
+exactly.
+
+### 9.5 Optional: seed the demo org
+
+Production starts empty (migrations only, no seed). To load the Acme demo
+(`demo@beacon.dev` / `beacon1234`) from your machine:
+
+```powershell
+cd backend
+$env:DATABASE_URL="<Aiven Service URI>"
+$env:DIRECT_URL="<Aiven Service URI>"
+npm run seed
+```
+
+### 9.6 If something fails
+
+| Symptom | Likely cause |
+| --- | --- |
+| Build: `prisma: not found` | `prisma` must be in `dependencies`. Re-deploy this repo as-is. |
+| Pre-deploy: advisory lock / P1002 | `DIRECT_URL` is the pooler. Use the Overview Service URI. |
+| Start: `P1001` / can't reach database | Aiven IP allow list, or `sslmode=require` missing from the URI |
+| Health check timeout | First boot waiting on Aiven; confirm the URI and IP list, then redeploy |
+| `Cannot reach the API` on Vercel | Wrong `NEXT_PUBLIC_API_URL`, or the Render service is spun down (wait and retry) |
+| CORS / login cookie dropped | `WEB_ORIGIN` trailing slash or `http` vs `https` mismatch |
+

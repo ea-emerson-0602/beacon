@@ -1,5 +1,7 @@
 # Blueprint for the Beacon API. Connect this repo in Render and it will
 # create a Node web service rooted at backend/.
+# Database is Aiven Postgres — paste the Service URI into DATABASE_URL and
+# DIRECT_URL in the Dashboard (see SETUP.md).
 # https://render.com/docs/blueprint-spec
 
 services:
@@ -8,10 +10,17 @@ services:
     runtime: node
     rootDir: backend
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: npm run prisma:migrate && npm start
+    buildCommand: npm ci --include=dev && npm run build
+    preDeployCommand: npm run prisma:migrate
+    startCommand: npm start
     healthCheckPath: /health
+    buildFilter:
+      paths:
+        - backend/**
+        - render.yaml
     envVars:
+      - key: NODE_VERSION
+        value: "20"
       - key: NODE_ENV
         value: production
       - key: COOKIE_SECURE
@@ -25,4 +34,4 @@ services:
       - key: WEB_ORIGIN
         sync: false
       - key: REDIS_URL
-        sync: false
+        value: ""

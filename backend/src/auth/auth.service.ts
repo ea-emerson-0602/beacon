@@ -17,6 +17,7 @@ import {
   ResetPasswordDto,
 } from "./auth.dto";
 import { MailerService } from "./mailer.service";
+import { webOrigin } from "../env";
 
 const RESET_TTL_MS = 60 * 60 * 1000;
 
@@ -116,8 +117,7 @@ export class AuthService {
       },
     });
 
-    const origin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
-    const resetUrl = `${origin}/reset-password?token=${token}`;
+    const resetUrl = `${webOrigin()}/reset-password?token=${token}`;
 
     try {
       await this.mailer.sendPasswordReset(user.email, resetUrl);

@@ -25,7 +25,7 @@ worth more than another feature.
 
 - Frontend on Vercel, root directory `frontend`
 - Backend on Render or Fly.io, root directory `backend`
-- Postgres on Neon
+- Postgres on Aiven
 - Serve both under one parent domain so the session cookie works cleanly
 
 ### 2. Wrap the incident write and outbox insert in one transaction
