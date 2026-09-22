@@ -317,8 +317,12 @@ and fails with `ENOENT`:
 | --- | --- |
 | Root Directory | `backend` |
 | Build Command | `npm ci --include=dev && npm run build` |
-| Pre-Deploy Command | `npm run prisma:migrate` |
-| Start Command | `npm start` |
+| Start Command | `npm run prisma:migrate && npm start` |
+
+Free web services have **no Pre-Deploy Command** field. Migrations run as
+part of the start command instead (`prisma migrate deploy` is safe to run
+on every boot). The field only appears on paid instance types, under
+Settings → Deploy.
 
 Fill the Blueprint secrets:
 
@@ -333,8 +337,8 @@ Fill the Blueprint secrets:
 Do **not** set `PORT`. Render injects it.
 
 `NODE_ENV=production`, `COOKIE_SECURE=true`, and Node 20 are already in
-`render.yaml`. Build installs devDependencies (TypeScript) then compiles;
-`preDeployCommand` runs `prisma migrate deploy` against `DIRECT_URL`.
+`render.yaml`. Build installs devDependencies (TypeScript) then compiles.
+The start command applies pending Prisma migrations, then boots the API.
 
 When the deploy is **Live**, open `https://<your-service>.onrender.com/health`.
 You should see `{"ok":true,"service":"beacon-api"}`. Free instances spin down
