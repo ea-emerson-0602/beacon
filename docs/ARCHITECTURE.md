@@ -1,8 +1,7 @@
 # Architecture
 
 How Beacon is put together, and why each choice was made. This is the document
-to read before changing anything structural — and the one to skim before talking
-about the project in an interview.
+to read before changing anything structural
 
 ---
 
